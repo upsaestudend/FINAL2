@@ -5,6 +5,7 @@ import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 # Título de la app
 st.title("📚 Predicción de la Nota Final del Estudiante")
@@ -56,6 +57,30 @@ def clasificar(nota):
 
 df["Clasificacion"] = df["Nota_Final_Calculada"].apply(clasificar)
 
+# Generar matriz_confusion.png si no existe
+def generar_matriz_confusion():
+    if not os.path.exists("matriz_confusion.png"):
+        X = df[["Parcial_1", "Parcial_2", "Parcial_3", "Asistencia"]]
+        y_real = df["Nota_Final_Calculada"]
+        y_pred = modelo.predict(X)
+
+        y_real_clas = y_real.apply(clasificar)
+        y_pred_clas = pd.Series(y_pred).apply(clasificar)
+
+        labels = ["Excelente", "Óptimo", "Satisfactorio", "Bueno", "Regular", "Insuficiente"]
+        cm = confusion_matrix(y_real_clas, y_pred_clas, labels=labels)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        disp.plot(ax=ax, cmap="Blues")
+        plt.title("Matriz de Confusión")
+        plt.savefig("matriz_confusion.png")
+        plt.close()
+        print("✅ matriz_confusion.png generada.")
+
+# Llamar generación
+generar_matriz_confusion()
+
 # Formulario de entrada
 st.sidebar.header("✍️ Ingrese los datos del estudiante")
 
@@ -82,7 +107,8 @@ X_nuevo = pd.DataFrame({
 })
 
 # Predicción
-nota_predicha = modelo.predict(X_nuevo)[0]
+nota_predicha_raw = modelo.predict(X_nuevo)[0]
+nota_predicha = max(0, min(100, nota_predicha_raw))
 clasificacion = clasificar(nota_predicha)
 
 # Mostrar resultado
@@ -91,7 +117,7 @@ st.write(f"📝 **Nota final estimada:** {nota_predicha:.1f}")
 st.write(f"🏅 **Clasificación:** {clasificacion}")
 
 # Mostrar gráficos
-st.subheader("📊 Estadísticas del dataset")
+st.subheader("📈 Estadísticas del dataset")
 
 col1, col2 = st.columns(2)
 
@@ -113,7 +139,7 @@ with col2:
     ax2.set_title("Histograma de Notas Finales")
     st.pyplot(fig2)
 
-# Mostrar matriz de confusión guardada (opcional)
+# Mostrar matriz de confusión guardada
 st.subheader("📌 Matriz de Confusión del Modelo")
 if os.path.exists("matriz_confusion.png"):
     st.image("matriz_confusion.png", caption="Comparación de clasificaciones reales vs. predichas")
